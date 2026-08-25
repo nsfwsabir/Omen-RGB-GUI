@@ -48,4 +48,9 @@ public:
     static QList<FanPoint> presetPerformance();
 
     bool isFanAvailable(bool *ok = nullptr); // checks if RPM readable at all
+
+    // Fan sysfs support (directory + files exist) - driver v1.3 has no fan, v1.5+ on Victus does
+    static bool isFanSupported();
+    static QString notSupportedMessage();
+    bool isSupported() const { return isFanSupported(); }
 };

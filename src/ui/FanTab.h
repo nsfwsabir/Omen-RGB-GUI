@@ -11,6 +11,7 @@ class QPushButton;
 class QLineEdit;
 class QSpinBox;
 class QTableWidget;
+class QGroupBox;
 
 class FanTab : public QWidget {
     Q_OBJECT
@@ -34,6 +35,9 @@ private:
     QLabel *m_cpuRpm;
     QLabel *m_gpuRpm;
     QLabel *m_statusLabel;
+    QLabel *m_unsupportedBanner;
+    QGroupBox *m_ctrlBox;
+    QGroupBox *m_curveBox;
     QCheckBox *m_maxFan;
     QComboBox *m_thermalProfile;
     QPushButton *m_thermalApply;
@@ -46,4 +50,5 @@ private:
     QLabel *m_curveStringLabel;
     QLineEdit *m_curveEdit;
     QTimer m_pollTimer;
+    void updateFanAvailability();
 };

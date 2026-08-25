@@ -36,7 +36,15 @@ int FanController::gpuRpm(bool *ok) {
 }
 
 bool FanController::setMaxFan(bool enable, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     QString path = OmenDevice::fanPath(OmenDevice::Files::MaxFan);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, enable ? "1" : "0", error);
 }
 bool FanController::maxFan(bool *ok) {
@@ -48,11 +56,19 @@ bool FanController::maxFan(bool *ok) {
 }
 
 bool FanController::setThermalProfile(const QString &profile, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     if (!availableProfiles().contains(profile)) {
         if (error) *error="Invalid profile (silent/normal/performance)";
         return false;
     }
     QString path = OmenDevice::fanPath(OmenDevice::Files::ThermalProfile);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, profile, error);
 }
 QString FanController::thermalProfile(bool *ok) {
@@ -99,17 +115,33 @@ bool FanController::validatePoints(const QList<FanPoint> &pts, QString *error) {
 }
 
 bool FanController::setFanCurve(const QList<FanPoint> &points, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     if (!validatePoints(points, error)) return false;
     QString str = pointsToString(points);
     QString path = OmenDevice::fanPath(OmenDevice::Files::FanCurve);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, str, error);
 }
 bool FanController::setFanCurveString(const QString &str, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     bool ok;
     auto pts = stringToPoints(str, &ok);
     if (!ok) { if (error) *error="Invalid fan curve format (expected temp:percent ...)"; return false; }
     if (str.trimmed()!="(unset)" && !validatePoints(pts, error)) return false;
     QString path = OmenDevice::fanPath(OmenDevice::Files::FanCurve);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, str, error);
 }
 
@@ -130,7 +162,15 @@ QString FanController::fanCurveString(bool *ok) {
 }
 
 bool FanController::setCurveEnable(bool enable, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     QString path = OmenDevice::fanPath(OmenDevice::Files::FanCurveEnable);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, enable ? "1" : "0", error);
 }
 bool FanController::curveEnabled(bool *ok) {
@@ -142,6 +182,10 @@ bool FanController::curveEnabled(bool *ok) {
 }
 
 bool FanController::setTempZone(const QString &zone, QString *error) {
+    if (!isFanSupported()) {
+        if (error) *error = notSupportedMessage();
+        return false;
+    }
     // Allow "(auto)" to mean empty? But driver expects name; we treat "(auto)" as not setting?
     // For now write zone as given; if "(auto)" we do nothing or write empty?
     // Valid zones checked via availableTempZones
@@ -155,6 +199,10 @@ bool FanController::setTempZone(const QString &zone, QString *error) {
         return false;
     }
     QString path = OmenDevice::fanPath(OmenDevice::Files::FanTempZone);
+    if (!SysFs::exists(path)) {
+        if (error) *error = notSupportedMessage() + QString(" (missing %1)").arg(path);
+        return false;
+    }
     return SysFs::write(path, zone, error);
 }
 QString FanController::tempZone(bool *ok) {
@@ -200,10 +248,35 @@ QList<FanPoint> FanController::presetPerformance() {
 }
 
 bool FanController::isFanAvailable(bool *ok) {
+    if (!isFanSupported()) { if (ok) *ok=false; return false; }
     bool cpuOk, gpuOk;
     cpuRpm(&cpuOk);
     gpuRpm(&gpuOk);
     bool avail = cpuOk || gpuOk;
     if (ok) *ok=avail;
     return avail;
+}
+
+bool FanController::isFanSupported() {
+    // Check if fan sysfs directory/files exist - driver v1.3 has no fan
+    QString fanBase = OmenDevice::fanBase();
+    QDir dir(fanBase);
+    if (dir.exists()) return true;
+    // Fallback: check specific fan files (covers mock OMEN_RGB_ROOT)
+    if (SysFs::exists(OmenDevice::fanPath(OmenDevice::Files::MaxFan))) return true;
+    if (SysFs::exists(OmenDevice::fanPath(OmenDevice::Files::CpuFanRpm))) return true;
+    if (SysFs::exists(OmenDevice::fanPath(OmenDevice::Files::FanCurve))) return true;
+    return false;
+}
+
+QString FanController::notSupportedMessage() {
+    QString ver = OmenDevice::driverVersion();
+    QString base = QString("Fan control not available on this device/driver.");
+    if (!OmenDevice::isDriverLoaded()) {
+        return base + " Driver not loaded. Install via Settings.";
+    }
+    if (ver.contains("1.3") || ver == "unknown") {
+        return base + QString(" Driver v%1 exposes only RGB zones (no fan). Fan requires driver with fan support (OMEN 16/Victus, BIOS table 0x2F, CONFIG_THERMAL=y, hp_wmi blacklisted). This HP OMEN 16-wd uses RGB-only driver v1.3.").arg(ver);
+    }
+    return base + " Requires HP Victus/OMEN with BIOS fan table (Victus 0x2D, table 0x2F), CONFIG_THERMAL=y, and driver with fan support. Check Settings → dmesg and ensure hp_wmi is blacklisted.";
 }
