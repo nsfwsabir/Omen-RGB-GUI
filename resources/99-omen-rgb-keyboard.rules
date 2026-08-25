@@ -1,0 +1,11 @@
+# HP OMEN RGB Keyboard udev rules
+# Allows users in 'input' group to control RGB keyboard without repeated authentication
+# Uses RUN to fix permissions dynamically - works with nested rgb_zones/* attributes
+
+ACTION=="add", SUBSYSTEM=="platform", KERNEL=="omen-rgb-keyboard", RUN+="/bin/sh -c 'chgrp -R input /sys/devices/platform/omen-rgb-keyboard/rgb_zones 2>/dev/null; chmod -R g+w /sys/devices/platform/omen-rgb-keyboard/rgb_zones 2>/dev/null; for f in /sys/devices/platform/omen-rgb-keyboard/rgb_zones/*; do [ -e \"$f\" ] && chgrp input \"$f\" 2>/dev/null; chmod g+w \"$f\" 2>/dev/null; done'"
+ACTION=="add", SUBSYSTEM=="platform", KERNEL=="omen-rgb-keyboard", RUN+="/bin/sh -c 'chgrp -R input /sys/devices/platform/omen-rgb-keyboard/fan 2>/dev/null; chmod -R g+w /sys/devices/platform/omen-rgb-keyboard/fan 2>/dev/null; for f in /sys/devices/platform/omen-rgb-keyboard/fan/*; do [ -e \"$f\" ] && chgrp input \"$f\" 2>/dev/null; chmod g+w \"$f\" 2>/dev/null; done'"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="omen::kbd_backlight", RUN+="/bin/sh -c 'chgrp input /sys/class/leds/omen::kbd_backlight/brightness 2>/dev/null; chmod g+w /sys/class/leds/omen::kbd_backlight/brightness 2>/dev/null; chgrp input /sys/class/leds/omen::kbd_backlight/max_brightness 2>/dev/null'"
+
+# Fallback: also set GROUP/MODE for direct attributes where applicable (may not cover nested)
+SUBSYSTEM=="platform", KERNEL=="omen-rgb-keyboard", GROUP="input", MODE="0664"
+SUBSYSTEM=="leds", KERNEL=="omen::kbd_backlight", GROUP="input", MODE="0664"

@@ -39,11 +39,14 @@ QString DkmsInstaller::dkmsStatus() {
 
 static bool runPkexec(const QString &bashCmd, QString *error, QString *output = nullptr) {
     QProcess p;
-    // pkexec bash -c '...'
-    p.start("pkexec", {"bash","-c", bashCmd});
+    // Use absolute path to match polkit policy annotation
+    p.start("pkexec", {"/usr/bin/bash","-c", bashCmd});
     if (!p.waitForStarted(3000)) {
-        if (error) *error = "pkexec failed to start: " + p.errorString();
-        return false;
+        p.start("pkexec", {"bash","-c", bashCmd});
+        if (!p.waitForStarted(3000)) {
+            if (error) *error = "pkexec failed to start: " + p.errorString();
+            return false;
+        }
     }
     if (!p.waitForFinished(60000)) {
         p.kill();

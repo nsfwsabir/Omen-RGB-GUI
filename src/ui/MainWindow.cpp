@@ -6,6 +6,7 @@
 #include "core/OmenDevice.h"
 #include "core/RgbController.h"
 #include "core/AnimationController.h"
+#include "core/SysFs.h"
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QStatusBar>
@@ -99,12 +100,16 @@ void MainWindow::createTray() {
     for (auto &qp : qps) {
         auto *act = presets->addAction(qp.name);
         connect(act, &QAction::triggered, this, [this, qp](){
-            RgbController rgb;
+            QMap<QString, QString> writes;
+            writes[OmenDevice::rgbPath("all")] = qp.hex;
+            writes[OmenDevice::rgbPath("brightness")] = QString::number(qp.bri);
             QString err;
-            rgb.setAllHex(qp.hex, &err);
-            rgb.setBrightness(qp.bri, &err);
+            if (!SysFs::writeBatch(writes, &err)) {
+                if (m_tray) m_tray->showMessage("Omen RGB", QString("Failed %1: %2").arg(qp.name).arg(err), QSystemTrayIcon::Critical, 3000);
+            } else {
+                if (m_tray) m_tray->showMessage("Omen RGB", QString("Applied %1").arg(qp.name), QSystemTrayIcon::Information, 1500);
+            }
             m_colorTab->refresh();
-            if (m_tray) m_tray->showMessage("Omen RGB", QString("Applied %1").arg(qp.name), QSystemTrayIcon::Information, 1500);
         });
     }
     Q_UNUSED(presets);

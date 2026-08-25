@@ -1,6 +1,7 @@
 #include "ColorTab.h"
 #include "core/RgbController.h"
 #include "core/SysFs.h"
+#include "core/OmenDevice.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -14,6 +15,7 @@
 #include <QColorDialog>
 #include <QMessageBox>
 #include <QRegularExpressionValidator>
+#include <QMap>
 
 ColorTab::ColorTab(QWidget *parent) : QWidget(parent), m_rgb(new RgbController(this)) {
     auto *main = new QVBoxLayout(this);
@@ -233,31 +235,35 @@ void ColorTab::applyBrightness() {
 
 void ColorTab::applyPreset() {
     QString key = m_presetCombo->currentData().toString();
-    QString err;
+    QMap<QString, QString> writes;
     if (key=="preset_gaming") {
-        m_rgb->setAllHex("FF0000",&err);
-        m_rgb->setBrightness(75,&err);
+        writes[OmenDevice::rgbPath("all")] = "FF0000";
+        writes[OmenDevice::rgbPath("brightness")] = "75";
     } else if (key=="preset_white") {
-        m_rgb->setAllHex("FFFFFF",&err);
-        m_rgb->setBrightness(25,&err);
+        writes[OmenDevice::rgbPath("all")] = "FFFFFF";
+        writes[OmenDevice::rgbPath("brightness")] = "25";
     } else if (key=="preset_rainbow") {
-        m_rgb->setZoneHex(0,"FF0000",&err);
-        m_rgb->setZoneHex(1,"FF8000",&err);
-        m_rgb->setZoneHex(2,"FFFF00",&err);
-        m_rgb->setZoneHex(3,"00FF00",&err);
-        m_rgb->setBrightness(80,&err);
+        writes[OmenDevice::rgbPath("zone00")] = "FF0000";
+        writes[OmenDevice::rgbPath("zone01")] = "FF8000";
+        writes[OmenDevice::rgbPath("zone02")] = "FFFF00";
+        writes[OmenDevice::rgbPath("zone03")] = "00FF00";
+        writes[OmenDevice::rgbPath("brightness")] = "80";
     } else if (key=="preset_ocean") {
-        m_rgb->setAllHex("0080FF",&err);
-        m_rgb->setBrightness(80,&err);
+        writes[OmenDevice::rgbPath("all")] = "0080FF";
+        writes[OmenDevice::rgbPath("brightness")] = "80";
     } else if (key=="preset_purple") {
-        m_rgb->setAllHex("FF00FF",&err);
-        m_rgb->setBrightness(90,&err);
+        writes[OmenDevice::rgbPath("all")] = "FF00FF";
+        writes[OmenDevice::rgbPath("brightness")] = "90";
     } else if (key=="preset_off") {
-        m_rgb->setAllHex("000000",&err);
-        m_rgb->setBrightness(0,&err);
+        writes[OmenDevice::rgbPath("all")] = "000000";
+        writes[OmenDevice::rgbPath("brightness")] = "0";
     }
-    if (!err.isEmpty()) {
-        // check via SysFs lastError
+    QString err;
+    if (!writes.isEmpty()) {
+        if (!SysFs::writeBatch(writes, &err)) {
+            QMessageBox::critical(this, "Preset Failed", err.isEmpty() ? SysFs::lastError : err);
+            return;
+        }
     }
     refresh();
 }

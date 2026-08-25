@@ -1,5 +1,7 @@
 #include "AnimationTab.h"
 #include "core/AnimationController.h"
+#include "core/SysFs.h"
+#include "core/OmenDevice.h"
 #include "ui/GradientEditorDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -43,9 +45,11 @@ AnimationTab::AnimationTab(QWidget *parent) : QWidget(parent), m_anim(new Animat
         btn->setToolTip(QString("%1 @ %2").arg(q.mode).arg(q.speed));
         mLay->addWidget(btn);
         connect(btn, &QPushButton::clicked, this, [this, q](){
+            QMap<QString, QString> writes;
+            writes[OmenDevice::rgbPath("animation_mode")] = q.mode;
+            writes[OmenDevice::rgbPath("animation_speed")] = QString::number(q.speed);
             QString err;
-            if (!m_anim->setMode(q.mode, &err)) { QMessageBox::critical(this,"Mode Failed", err); return; }
-            if (!m_anim->setSpeed(q.speed, &err)) { QMessageBox::critical(this,"Speed Failed", err); return; }
+            if (!SysFs::writeBatch(writes, &err)) { QMessageBox::critical(this,"Quick Failed", err); return; }
             refresh();
         });
     }
