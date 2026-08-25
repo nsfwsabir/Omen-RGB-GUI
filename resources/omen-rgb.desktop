@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Omen RGB
+GenericName=Keyboard RGB Control
+Comment=Control HP OMEN 4-zone RGB keyboard, animations, fan curves & mute LED
+Exec=omen-rgb
+Icon=omen-rgb
+Terminal=false
+Categories=Settings;HardwareSettings;Utility;
+Keywords=omen;rgb;keyboard;fan;hp;lighting;
+StartupNotify=true
+X-GNOME-UsesNotifications=true
